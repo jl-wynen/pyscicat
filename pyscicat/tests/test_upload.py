@@ -123,7 +123,9 @@ def test_upload_cleans_up_files_if_dataset_ingestion_fails(
     assert not upload.uploaded
 
 
-def test_upload_creates_orig_data_blocks(mock_request, client, derived_dataset, data_files):
+def test_upload_creates_orig_data_blocks(
+    mock_request, client, derived_dataset, data_files
+):
     upload_dataset_and_files(client, derived_dataset, data_files, FakeUpload())
     # TODO
     assert False
