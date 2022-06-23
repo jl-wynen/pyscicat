@@ -1,40 +1,17 @@
 import pytest
-import requests_mock
 from urllib.parse import urljoin
 
-from ..client import ScicatClient
 from ..model import DatasetType, DataFile, DerivedDataset, Ownable
 from ..ingest.upload import upload_dataset_and_files
 
 
 @pytest.fixture
-def local_url():
-    return "http://localhost:3000/api/v3/"
-
-
-@pytest.fixture
-def mock_request(local_url):
-    with requests_mock.Mocker() as mock:
-        mock.post(
-            urljoin(local_url, "Users/login"),
-            json={"id": "a_token"},
-        )
-
-        mock.post(
-            urljoin(local_url, "DerivedDatasets/replaceOrCreate"),
-            json={"pid": "1234-5678-abcd"},
-        )
-
-        yield mock
-
-
-@pytest.fixture
-def client(mock_request, local_url):
-    return ScicatClient(
-        base_url=local_url,
-        username="Zaphod",
-        password="heartofgold",
+def mock_request(local_url, mock_request):
+    mock_request.post(
+        urljoin(local_url, "DerivedDatasets/replaceOrCreate"),
+        json={"pid": "1234-5678-abcd"},
     )
+    return mock_request
 
 
 @pytest.fixture
