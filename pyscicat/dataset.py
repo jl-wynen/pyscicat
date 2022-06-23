@@ -3,9 +3,10 @@ from collections.abc import MutableMapping
 from datetime import datetime, timezone
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
-from .model import DerivedDataset, DataFile, OrigDatablock
+from .client import ScicatClient
+from .model import DerivedDataset, DataFile, RawDataset, OrigDatablock
 
 
 def _make_model_accessor(field_name: str, model_name: str):
@@ -160,6 +161,7 @@ class File:
 
 
 # TODO handle orig vs non-orig datablocks
+# TODO do not expose certain attributes (size, numberOfFiles) and manage them internally
 @_wrap_model(DerivedDataset, "model")
 class DatasetRENAMEME:
     # TODO support RawDataset
@@ -182,7 +184,30 @@ class DatasetRENAMEME:
             model=DerivedDataset(**model_dict), files=[], datablock=None
         )
 
-    # TODO construct from scicat
+    @classmethod
+    def from_scicat(cls, client: ScicatClient, pid: str) -> DatasetRENAMEME:
+        dset_json = client.get_dataset_by_pid(pid)
+        model = (
+            DerivedDataset(**dset_json)
+            if dset_json["type"] == "derived"
+            else RawDataset(**dset_json)
+        )
+
+        dblock_json = client.get_dataset_origdatablocks(pid)
+        assert len(dblock_json) == 1  # TODO
+        dblock_json = dblock_json[0]
+
+        files = [
+            File.from_scicat(DataFile(**file_json), model.sourceFolder)
+            for file_json in dblock_json["dataFileList"]
+        ]
+
+        del dblock_json["dataFileList"]
+        dblock = OrigDatablock(
+            **dblock_json, dataFileList=[file.model for file in files]
+        )
+
+        return DatasetRENAMEME(model=model, files=files, datablock=dblock)
 
     @property
     def model(self) -> DerivedDataset:
@@ -191,6 +216,10 @@ class DatasetRENAMEME:
     @property
     def meta(self):
         return ScientificMetadata(self.model)
+
+    @property
+    def files(self) -> Tuple[File, ...]:
+        return tuple(self._files)
 
     def add_file(self, file: File):
         self._files.append(file)
