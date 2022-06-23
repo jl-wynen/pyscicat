@@ -17,14 +17,27 @@ def _make_model_accessor(field_name: str, model_name: str):
     )
 
 
-def _wrap_model(model, model_name: str):
+def _make_raising_accessor(field_name: str):
+    # Prevent access to some attributes which are managed automatically.
+    # Using a property that always raises here,
+    # because that also prevents accidental assignments.
+    def impl(_self):
+        raise AttributeError(f"Attribute '{field_name}' is not accessible")
+
+    return property(impl)
+
+
+def _wrap_model(model, model_name: str, exclude: Tuple[str, ...]):
     def impl(cls):
         for field in model.__fields__:
-            setattr(
-                cls,
-                field,
-                _make_model_accessor(field_name=field, model_name=model_name),
-            )
+            if field in exclude:
+                setattr(cls, field, _make_raising_accessor(field))
+            else:
+                setattr(
+                    cls,
+                    field,
+                    _make_model_accessor(field_name=field, model_name=model_name),
+                )
         return cls
 
     return impl
@@ -162,8 +175,7 @@ class File:
 
 
 # TODO handle orig vs non-orig datablocks
-# TODO do not expose certain attributes (size, numberOfFiles) and manage them internally
-@_wrap_model(DerivedDataset, "model")
+@_wrap_model(DerivedDataset, "model", exclude=("size", "numberOfFiles"))
 class DatasetRENAMEME:
     # TODO support RawDataset
     def __init__(

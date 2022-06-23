@@ -119,6 +119,18 @@ def test_setting_dataset_properties_does_not_affect_other_attributes(derived_dat
     assert fields == expected_fields
 
 
+def test_cannot_access_some_dataset_properties(derived_dataset):
+    dset = DatasetRENAMEME.new(derived_dataset)
+    with pytest.raises(AttributeError):
+        _ = dset.size
+    with pytest.raises(AttributeError):
+        dset.size = 1
+    with pytest.raises(AttributeError):
+        _ = dset.numberOfFiles
+    with pytest.raises(AttributeError):
+        dset.numberOfFiles = 2
+
+
 def test_meta_behaves_like_dict(derived_dataset):
     dset = DatasetRENAMEME.new(derived_dataset)
     assert dset.model.scientificMetadata is None
