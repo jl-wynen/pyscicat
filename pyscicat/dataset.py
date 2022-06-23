@@ -194,9 +194,7 @@ class DatasetRENAMEME:
             else RawDataset(**dset_json)
         )
 
-        dblock_json = client.get_dataset_origdatablocks(pid)
-        assert len(dblock_json) == 1  # TODO
-        dblock_json = dblock_json[0]
+        dblock_json = _get_orig_datablock(pid, client)
 
         files = [
             File.from_scicat(DataFile(**file_json), model.sourceFolder)
@@ -257,6 +255,16 @@ class DatasetRENAMEME:
             }
         )
         return DatasetRENAMEME(model=model, files=files, datablock=datablock)
+
+
+def _get_orig_datablock(pid, client) -> dict:
+    dblock_json = client.get_dataset_origdatablocks(pid)
+    if len(dblock_json) != 1:
+        raise NotImplementedError(
+            f"Got {len(dblock_json)} original datablocks for dataset {pid} "
+            "but only support for one is implemented."
+        )
+    return dblock_json[0]
 
 
 def _ensure_source_folder(
