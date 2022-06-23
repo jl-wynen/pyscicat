@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+from uuid import uuid4
 
 from .client import ScicatClient
 from .model import DerivedDataset, DataFile, RawDataset, OrigDatablock
@@ -236,16 +237,19 @@ class DatasetRENAMEME:
     ) -> DatasetRENAMEME:
         files = list(map(File.with_model_from_local_file, self._files))
         total_size = sum(file.model.size for file in files)
+        # TODO might have datablock (w/ PID) in self
+        dataset_id = uuid4()
         datablock = OrigDatablock(
             size=total_size,
             dataFileList=[file.model for file in files],
-            datasetId="!!PLACEHOLDER!!",  # TODO better solution for id?
+            datasetId=dataset_id,
             ownerGroup=self.model.ownerGroup,
             accessGroups=self.model.accessGroups,
         )
         model = DerivedDataset(
             **{
                 **self.model.dict(exclude_none=True),
+                "pid": dataset_id,
                 "numberOfFiles": len(files),
                 "numberOfFilesArchived": None,  # TODO related to orig / non-orig issue
                 "size": total_size,
