@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections.abc import MutableMapping
 from datetime import datetime, timezone
+import hashlib
 import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -303,3 +304,13 @@ def _ensure_source_folder(
             "Pass an explicit 'source_folder' argument to override."
         )
     return next(iter(source_folders))
+
+
+def md5sum(path: Union[str, Path]) -> str:
+    md5 = hashlib.md5()
+    # size based on http://git.savannah.gnu.org/gitweb/?p=coreutils.git;a=blob;f=src/ioblksize.h;h=ed2f4a9c4d77462f357353eb73ee4306c28b37f1;hb=HEAD#l23
+    buffer = memoryview(bytearray(128 * 1024))
+    with open(path, "rb", buffering=0) as file:
+        for n in iter(lambda: file.readinto(buffer), 0):
+            md5.update(buffer[:n])
+    return md5.hexdigest()
