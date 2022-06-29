@@ -224,16 +224,3 @@ def test_file_with_model_from_local_file(fs):
     # Ignoring seconds and minutes in order to be robust against latency in the test.
     t = datetime.fromisoformat(file.model.time).replace(second=0, minute=0)
     assert t == creation_time
-
-
-def test_upload(client, derived_dataset, fs):
-    fs.create_file("events.nxs", st_size=9876)
-    fs.create_file("run.log", st_size=123)
-    from ..essfiles import ESSTestFileTransfer
-    from functools import partial
-
-    dset = DatasetRENAMEME.new(derived_dataset)
-    dset.add_local_files("events.nxs", "run.log")
-    dset.upload_new_dataset_now(
-        client, uploader_factory=partial(ESSTestFileTransfer, host="dmsc")
-    )
