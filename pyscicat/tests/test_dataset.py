@@ -237,24 +237,3 @@ def test_upload(client, derived_dataset, fs):
     dset.upload_new_dataset_now(
         client, uploader_factory=partial(ESSTestFileTransfer, host="dmsc")
     )
-
-
-def test_main(derived_dataset, ownable):
-    # dset = DatasetRENAMEME.new(derived_dataset)
-    # f = File.from_local('/home/jl/Work/pyscicat/README.md')
-    # dset.add_file(f)
-    # dset.add_local_file('/home/jl/Work/pyscicat/setup.cfg', relative_to='setup')
-    # print(dset._files)
-    # print(dset.finalize_model(source_folder='UPLOAD'))
-
-    # how to use it
-    # dset = DatasetRENAMEME.from_scicat(client, pid)
-    # path = dset.files[1].download(file_downloader=ess_download)
-    #
-    # # TODO ScientificMetadata
-    # dset = DatasetRENAMEME.new(owner='me', datasetName='dset', ...)
-    # dset.add_local_file('file.txt')
-    # dset.upload(client, file_uploader=ess_uplaod)
-    # dset.interactive_upload(file_uploader=ess_uplaod)
-
-    assert False
