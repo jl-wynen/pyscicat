@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
 from .client import ScicatClient
-from .model import DerivedDataset, DataFile, RawDataset, OrigDatablock
+from .model import DerivedDataset, DataFile, DatasetType, RawDataset, OrigDatablock
 
 
 def _make_model_accessor(field_name: str, model_name: str):
@@ -74,20 +74,6 @@ class ScientificMetadata(MutableMapping):
 
     def __repr__(self):
         return repr(self._get_dict_or_empty())
-
-
-def _creation_time_str(st: os.stat_result) -> str:
-    """Return the time in UTC when a file was created.
-
-    Uses modification time as SciCat only cares about the latest version of the file.
-    """
-    # TODO is this correct on non-linux?
-    # TODO is this correct if the file was created in a different timezone (DST)?
-    return (
-        datetime.fromtimestamp(st.st_mtime)
-        .astimezone(timezone.utc)
-        .isoformat(timespec="seconds")
-    )
 
 
 class File:
@@ -176,7 +162,7 @@ class File:
 
 
 # TODO handle orig vs non-orig datablocks
-@_wrap_model(DerivedDataset, "model", exclude=("size", "numberOfFiles"))
+@_wrap_model(DerivedDataset, "model", exclude=("numberOfFiles", "size", "type"))
 class DatasetRENAMEME:
     # TODO support RawDataset
     def __init__(
@@ -200,13 +186,7 @@ class DatasetRENAMEME:
 
     @classmethod
     def from_scicat(cls, client: ScicatClient, pid: str) -> DatasetRENAMEME:
-        dset_json = client.get_dataset_by_pid(pid)
-        model = (
-            DerivedDataset(**dset_json)
-            if dset_json["type"] == "derived"
-            else RawDataset(**dset_json)
-        )
-
+        model = _get_dataset_model(pid, client)
         dblock_json = _get_orig_datablock(pid, client)
 
         files = [
@@ -230,18 +210,22 @@ class DatasetRENAMEME:
         return ScientificMetadata(self.model)
 
     @property
+    def dataset_type(self) -> DatasetType:
+        return self._model.type
+
+    @property
     def files(self) -> Tuple[File, ...]:
         return tuple(self._files)
 
-    def add_file(self, file: File):
-        self._files.append(file)
+    def add_files(self, *files: File):
+        self._files.extend(files)
 
-    def add_local_file(
-        self, path: Union[str, Path], *, relative_to: Union[str, Path] = ""
-    ) -> File:
-        file = File.from_local(path, relative_to=relative_to)
-        self.add_file(file)
-        return file
+    def add_local_files(
+        self, *paths: Union[str, Path], relative_to: Union[str, Path] = ""
+    ):
+        self.add_files(
+            *(File.from_local(path, relative_to=relative_to) for path in paths)
+        )
 
     def finalize_model(
         self, *, source_folder: Optional[Union[str, Path]] = None
@@ -268,6 +252,15 @@ class DatasetRENAMEME:
             }
         )
         return DatasetRENAMEME(model=model, files=files, datablock=datablock)
+
+
+def _get_dataset_model(pid, client) -> Union[DerivedDataset, RawDataset]:
+    dset_json = client.get_dataset_by_pid(pid)
+    return (
+        DerivedDataset(**dset_json)
+        if dset_json["type"] == "derived"
+        else RawDataset(**dset_json)
+    )
 
 
 def _get_orig_datablock(pid, client) -> dict:
@@ -304,6 +297,21 @@ def _ensure_source_folder(
             "Pass an explicit 'source_folder' argument to override."
         )
     return next(iter(source_folders))
+
+
+def _creation_time_str(st: os.stat_result) -> str:
+    """Return the time in UTC when a file was created.
+
+    Uses modification time as SciCat only cares about the latest version of the file
+    and not when it was first created on the local system.
+    """
+    # TODO is this correct on non-linux?
+    # TODO is this correct if the file was created in a different timezone (DST)?
+    return (
+        datetime.fromtimestamp(st.st_mtime)
+        .astimezone(timezone.utc)
+        .isoformat(timespec="seconds")
+    )
 
 
 def md5sum(path: Union[str, Path]) -> str:
