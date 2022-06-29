@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import pytest
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote_plus
 
 from ..dataset import DatasetRENAMEME, File
 from ..model import DatasetType, DataFile, DerivedDataset, Ownable
@@ -172,6 +172,7 @@ def test_dataset_from_scicat(client, mock_request, dataset_json):
     assert dset.meta["weight"] == {"value": "42", "unit": "mg"}
 
     assert dset.files[0].local_path is None
+    assert dset.files[1].local_path is None
     assert str(dset.files[0].remote_access_path) == "/remote/source/file1.nxs"
     assert str(dset.files[1].remote_access_path) == "/remote/source/sub/file2.nxs"
 
@@ -225,14 +226,35 @@ def test_file_with_model_from_local_file(fs):
     assert t == creation_time
 
 
-#
-# def test_main(derived_dataset, ownable):
-#     dset = DatasetRENAMEME.new(derived_dataset)
-#     f = File.from_local('/home/jl/Work/pyscicat/README.md')
-#     dset.add_file(f)
-#     dset.add_local_file('/home/jl/Work/pyscicat/setup.cfg', relative_to='setup')
-#     print(dset._files)
-#     print(dset.finalize_model(source_folder='UPLOAD'))
-#
-#
-#     assert False
+def test_upload(client, derived_dataset, fs):
+    fs.create_file("events.nxs", st_size=9876)
+    fs.create_file("run.log", st_size=123)
+    from ..essfiles import ESSTestFileTransfer
+    from functools import partial
+
+    dset = DatasetRENAMEME.new(derived_dataset)
+    dset.add_local_files("events.nxs", "run.log")
+    dset.upload_new_dataset_now(
+        client, uploader_factory=partial(ESSTestFileTransfer, host="dmsc")
+    )
+
+
+def test_main(derived_dataset, ownable):
+    # dset = DatasetRENAMEME.new(derived_dataset)
+    # f = File.from_local('/home/jl/Work/pyscicat/README.md')
+    # dset.add_file(f)
+    # dset.add_local_file('/home/jl/Work/pyscicat/setup.cfg', relative_to='setup')
+    # print(dset._files)
+    # print(dset.finalize_model(source_folder='UPLOAD'))
+
+    # how to use it
+    # dset = DatasetRENAMEME.from_scicat(client, pid)
+    # path = dset.files[1].download(file_downloader=ess_download)
+    #
+    # # TODO ScientificMetadata
+    # dset = DatasetRENAMEME.new(owner='me', datasetName='dset', ...)
+    # dset.add_local_file('file.txt')
+    # dset.upload(client, file_uploader=ess_uplaod)
+    # dset.interactive_upload(file_uploader=ess_uplaod)
+
+    assert False

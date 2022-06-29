@@ -206,6 +206,10 @@ class DatasetRENAMEME:
         return self._model
 
     @property
+    def datablock(self) -> Optional[OrigDatablock]:
+        return self._datablock
+
+    @property
     def meta(self):
         return ScientificMetadata(self.model)
 
@@ -227,13 +231,10 @@ class DatasetRENAMEME:
             *(File.from_local(path, relative_to=relative_to) for path in paths)
         )
 
-    def finalize_model(
-        self, *, source_folder: Optional[Union[str, Path]] = None
-    ) -> DatasetRENAMEME:
+    def prepare_as_new(self) -> DatasetRENAMEME:
         files = list(map(File.with_model_from_local_file, self._files))
         total_size = sum(file.model.size for file in files)
-        # TODO might have datablock (w/ PID) in self
-        dataset_id = uuid4()
+        dataset_id = str(uuid4())
         datablock = OrigDatablock(
             size=total_size,
             dataFileList=[file.model for file in files],
@@ -246,12 +247,43 @@ class DatasetRENAMEME:
                 **self.model.dict(exclude_none=True),
                 "pid": dataset_id,
                 "numberOfFiles": len(files),
-                "numberOfFilesArchived": None,  # TODO related to orig / non-orig issue
+                "numberOfFilesArchived": None,
                 "size": total_size,
-                "sourceFolder": _ensure_source_folder(files, source_folder),
+                "sourceFolder": "<PLACEHOLDER>",
             }
         )
         return DatasetRENAMEME(model=model, files=files, datablock=datablock)
+
+    def upload_new_dataset_now(self, client: ScicatClient, uploader_factory):
+        if self._datablock is None:
+            dset = self.prepare_as_new()
+        else:
+            dset = self
+        uploader = uploader_factory(dataset_id=dset.pid)
+        dset.sourceFolder = uploader.remote_upload_path
+        for file in dset.files:
+            file.source_folder = dset.sourceFolder
+            uploader.put(local=file.local_path, remote=file.remote_access_path)
+
+        try:
+            client.create_dataset(dset.model)
+        except Exception:
+            for file in dset.files:
+                uploader.revert_put(
+                    local=file.local_path, remote=file.remote_access_path
+                )
+            raise
+
+        try:
+            client.create_dataset_origdatablock(dset.datablock)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to upload original datablocks for SciCat dataset {dset.pid}:"
+                f"\n{exc.args}\nThe dataset and data files were successfully uploaded "
+                "but are not linked with each other. Please fix the dataset manually!"
+            )
+
+        return dset
 
 
 def _get_dataset_model(pid, client) -> Union[DerivedDataset, RawDataset]:
