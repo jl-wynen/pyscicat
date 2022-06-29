@@ -180,6 +180,7 @@ class DatasetRENAMEME:
     def new(cls, model: Optional[DerivedDataset] = None, **kwargs) -> DatasetRENAMEME:
         model_dict = model.dict(exclude_none=True) if model is not None else {}
         model_dict.update(kwargs)
+        model_dict.setdefault("sourceFolder", "<PLACEHOLDER>")
         return DatasetRENAMEME(
             model=DerivedDataset(**model_dict), files=[], datablock=None
         )
