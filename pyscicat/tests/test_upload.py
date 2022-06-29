@@ -4,8 +4,9 @@ from urllib.parse import urljoin
 
 import pytest
 
-from ..model import DatasetType, DerivedDataset, Ownable
+from ..client import ScicatCommError
 from ..dataset import DatasetRENAMEME
+from ..model import DatasetType, DerivedDataset, Ownable
 
 
 @pytest.fixture
@@ -111,7 +112,7 @@ def test_upload_cleans_up_files_if_dataset_ingestion_fails(
     local_url, mock_request, client, dataset
 ):
     def fail_ingestion(_request, _context):
-        raise RuntimeError("Ingestion failed")
+        raise ScicatCommError("Ingestion failed")
 
     mock_request.reset()
     mock_request.post(
@@ -120,7 +121,7 @@ def test_upload_cleans_up_files_if_dataset_ingestion_fails(
     )
 
     uploader = FakeUpload()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ScicatCommError):
         dataset.upload_new_dataset_now(client, uploader_factory=uploader)
 
     assert not uploader.uploaded
@@ -142,7 +143,7 @@ def test_upload_creates_orig_data_blocks(
 
 def test_failed_datablock_upload_does_not_revert(mock_request, client, dataset):
     def fail_ingestion(_request, _context):
-        raise RuntimeError("Ingestion failed")
+        raise ScicatCommError("Ingestion failed")
 
     mock_request.post(re.compile("origdatablocks"), json=fail_ingestion)
 

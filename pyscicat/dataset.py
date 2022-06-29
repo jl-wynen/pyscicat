@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
-from .client import ScicatClient
+from .client import ScicatClient, ScicatCommError
 from .model import DerivedDataset, DataFile, DatasetType, RawDataset, OrigDatablock
 
 
@@ -261,23 +261,24 @@ class DatasetRENAMEME:
         else:
             dset = self
         uploader = uploader_factory(dataset_id=dset.pid)
-        dset.sourceFolder = uploader.remote_upload_path
+        dset.sourceFolder = str(uploader.remote_upload_path)
         for file in dset.files:
             file.source_folder = dset.sourceFolder
             uploader.put(local=file.local_path, remote=file.remote_access_path)
 
         try:
-            client.create_dataset(dset.model)
-        except Exception:
+            dataset_id = client.create_dataset(dset.model)["pid"]
+        except ScicatCommError:
             for file in dset.files:
                 uploader.revert_put(
                     local=file.local_path, remote=file.remote_access_path
                 )
             raise
 
+        dset.datablock.datasetId = dataset_id
         try:
             client.create_dataset_origdatablock(dset.datablock)
-        except RuntimeError as exc:
+        except ScicatCommError as exc:
             raise RuntimeError(
                 f"Failed to upload original datablocks for SciCat dataset {dset.pid}:"
                 f"\n{exc.args}\nThe dataset and data files were successfully uploaded "
