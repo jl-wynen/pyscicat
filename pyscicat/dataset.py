@@ -267,7 +267,7 @@ class DatasetRENAMEME:
             uploader.put(local=file.local_path, remote=file.remote_access_path)
 
         try:
-            dataset_id = client.create_dataset(dset.model)["pid"]
+            dataset_id = client.datasets_create(dset.model)["pid"]
         except ScicatCommError:
             for file in dset.files:
                 uploader.revert_put(
@@ -277,7 +277,7 @@ class DatasetRENAMEME:
 
         dset.datablock.datasetId = dataset_id
         try:
-            client.create_dataset_origdatablock(dset.datablock)
+            client.datasets_origdatablock_create(dset.datablock)
         except ScicatCommError as exc:
             raise RuntimeError(
                 f"Failed to upload original datablocks for SciCat dataset {dset.pid}:"
