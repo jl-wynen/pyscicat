@@ -154,6 +154,13 @@ class File:
             ),
         )
 
+    def provide_locally(self, directory: Union[str, Path], *, downloader) -> Path:
+        directory = Path(directory)
+        directory.mkdir(exist_ok=True)
+        local_path = directory / self.source_path
+        downloader.get(local=local_path, remote=self.remote_access_path)
+        self._local_path = local_path
+
     def __repr__(self):
         return (
             f"File(source_folder={self.source_folder}, source_path={self.source_path}, "
@@ -162,6 +169,7 @@ class File:
 
 
 # TODO handle orig vs non-orig datablocks
+# TODO add derive method
 @_wrap_model(DerivedDataset, "model", exclude=("numberOfFiles", "size", "type"))
 class DatasetRENAMEME:
     # TODO support RawDataset
